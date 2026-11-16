@@ -1,0 +1,89 @@
+
+
+.status-box {
+  display: inline-block;
+  border-radius: 50px;
+  background-color: #FEF9C2;
+  font-weight: 500;
+  text-align: center;
+
+  min-width: 100px;
+  position: relative;
+  padding: 4px 12px 4px 20px; /* ⬅️ reduced from 26px */
+  line-height: 20px;
+  font-size: 13px;
+  border: 1px solid #facc15; 
+}
+
+
+.status-box::before {
+  content: "";
+  position: absolute;
+  left: 13px; /* ⬅️ slightly closer */
+  top: 50%;
+  transform: translateY(-50%);
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+}
+
+
+.status-box.active {
+  background-color: #DBFCE7;
+  color: oklch(52.7% .154 150.069);;
+  font-weight: 600; /* 🔥 increased */
+  border: 1px solid #86efac; /* light green border */
+}
+
+.status-box.active::before {
+  background-color: oklch(52.7% .154 150.069);;
+}
+
+
+.status-box.inactive {
+  background-color: #FEF9C2;
+  color: oklch(55.4% .135 66.442);;
+  font-weight: 600; /* 🔥 increased */
+}
+
+.status-box.inactive::before {
+  background-color: oklch(55.4% .135 66.442);;
+}
+
+/* Button entry animation */
+/* ===== Base fade animation ===== */
+.fade-up3 {
+  opacity: 0;
+  transform: translateY(20px);
+  animation: fadeUp3 0.5s ease forwards;
+}
+
+@keyframes fadeUp3 {
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* ===== Section delays ===== */
+.section-1 { animation-delay: 0.2s; }
+.section-2 { animation-delay: 0.4s; }
+.section-3 { animation-delay: 0.6s; }
+.section-4 { animation-delay: 0.8s; }
+.section-5 { animation-delay: 1s; }
+
+/* ===== Table row animation ===== */
+.table-row {
+  opacity: 0;
+  transform: translateY(15px) scale(1);
+  animation: rowFade 0.4s ease forwards;
+}
+
+@keyframes rowFade {
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+/* ===== Hover effect (fixed) ===== */

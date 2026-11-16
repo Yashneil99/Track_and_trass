@@ -1,0 +1,9 @@
+node_modules
+build
+npm-debug.log
+.git
+.gitignore
+Dockerfile
+.dockerignore
+# API URL comes from the build arg, not a baked-in .env file
+.env

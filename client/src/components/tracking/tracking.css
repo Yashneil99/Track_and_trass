@@ -1,0 +1,118 @@
+/* Remove teal (focus) border when clicking any cell */
+.MuiDataGrid-cell:focus,
+.MuiDataGrid-cell:focus-within {
+  outline: none !important;
+  border-color: transparent !important;
+}
+
+/* Remove focus outline from column headers */
+.MuiDataGrid-columnHeader:focus,
+.MuiDataGrid-columnHeader:focus-within {
+  outline: none !important;
+  border-color: transparent !important;
+}
+
+/* Optional: Remove the thick blue highlight around DataGrid container */
+.MuiDataGrid-root .MuiDataGrid-overlayWrapper:focus,
+.MuiDataGrid-root:focus,
+.MuiDataGrid-root:focus-within {
+  outline: none !important;
+}
+
+/* Wrapper styling for rounded corners + shadow */
+.custom-data-grid-wrapper .MuiDataGrid-root {
+  border-radius: 10px !important;
+  overflow: hidden !important;
+  box-shadow: 0px 3px 10px rgba(0,0,0,0.15);
+  border: none !important;
+}
+
+/* Make header bold & stronger */
+.custom-data-grid-wrapper .MuiDataGrid-columnHeaders {
+  font-weight: 700 !important;
+  font-size: 15px;
+  background-color: #f3f3f3; /* optional, remove if not required */
+}
+
+.custom-data-grid-wrapper .MuiDataGrid-columnHeaderTitle {
+  font-weight: 700 !important;
+  color: #000 !important;
+}
+
+/* Optional – small style improvement for rows */
+.custom-data-grid-wrapper .MuiDataGrid-cell {
+  font-size: 14px;
+}
+
+
+
+.stats-grid{
+  width:100%;
+  display:grid;
+  grid-template-columns:repeat(auto-fit,minmax(280px,1fr));
+  gap:24px;
+  margin-bottom:32px;
+}
+
+.stats-card{
+  border-radius:16px !important;
+}
+
+.stats-content{
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+}
+
+.icon-box{
+  padding:16px;
+  border-radius:12px;
+}
+
+.icon-white{
+  background:rgba(255,255,255,0.2);
+}
+
+.icon-green{
+  background:#e6f4ea;
+}
+.icon-violet{
+  background:#e6eaf4;
+}
+
+.icon-orange{
+  background:#fff3e6;
+}
+
+/* ===== Page sections base animation ===== */
+.fade-up {
+  opacity: 0;
+  transform: translateY(18px);
+  animation: fadeUp 0.5s ease forwards;
+}
+
+@keyframes fadeUp {
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* ===== Section delays ===== */
+@keyframes fadeInUp1 {
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.fade-in-up1 {
+  opacity: 0;
+  transform: translateY(20px);
+  animation: fadeInUp1 0.6s ease forwards;
+  animation-fill-mode: both;
+}

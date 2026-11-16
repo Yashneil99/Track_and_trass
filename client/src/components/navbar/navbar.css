@@ -1,0 +1,80 @@
+.navbar {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  height: 60px;
+  border-bottom: 1px solid #e5e7eb;
+  background: #fff;
+  position: relative;
+}
+
+
+.navbar::before {
+  content: "";
+  position: absolute;
+  left: 219px; 
+  top: 0;
+  height: 100%;
+ border-right: 1px solid #e5e7eb; 
+}
+
+/* LEFT SECTION (same width as sidebar) */
+.navbar-left {
+  width: 220px; /* 🔥 SAME as sidebar width */
+  display: flex;
+  align-items: center;
+  padding-left: 45px;
+  
+}
+
+/* TITLE */
+.navbar-title {
+  font-size: 18px;
+  font-weight: 600;
+  color: #0f766e;
+}
+
+/* RIGHT SECTION */
+.navbar-right {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  padding-right: 20px;
+}
+
+/* DATE BOX (match UI) */
+.date-box {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 14px;
+  border: 1px solid #e5e7eb;
+  border-radius: 12px;
+  background-color: #f9fafb;
+  font-size: 14px;
+  color: #374151;
+}
+
+/* ADMIN BUTTON */
+.admin-btn {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  background-color: #0f766e;
+  color: #fff;
+  border-radius: 10px;
+  padding: 8px 16px;
+  font-size: 14px;
+  cursor: pointer;
+  border: none;
+  transition: 0.2s;
+}
+
+.admin-btn:hover {
+  background-color: #0d5f5a;
+}
+
+.calendar-icon {
+  font-size: 18px;
+  color: #6b7280;
+}

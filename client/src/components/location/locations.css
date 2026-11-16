@@ -1,0 +1,47 @@
+/* .css-wi4eyy-MuiDataGrid-root .MuiDataGrid-columnHeader {
+    position: relative;
+    display: flex;
+    align-items: center;
+    background-color: rgb(240, 240, 240); 
+}
+
+.css-wi4eyy-MuiDataGrid-root .MuiDataGrid-columnHeaderTitleContainer {
+    display: flex;
+    align-items: center;
+    gap: calc(var(--DataGrid-t-spacing-unit) * 0.25);
+    min-width: 0;
+    flex: 1;
+    color: black;
+    background-color: rgb(240, 240, 240); 
+    white-space: nowrap;
+    overflow: hidden;
+} */
+
+
+/* Wrapper styling for rounded corners + shadow */
+.custom-data-grid-wrapper .MuiDataGrid-root {
+  border-radius: 10px !important;
+  overflow: hidden !important;
+  box-shadow: 0px 3px 10px rgba(0,0,0,0.15);
+  border: none !important;
+}
+
+/* Make header bold & stronger */
+.custom-data-grid-wrapper .MuiDataGrid-columnHeaders {
+  font-weight: 700 !important;
+  font-size: 15px;
+  background-color: #f3f3f3; /* optional, remove if not required */
+}
+
+.custom-data-grid-wrapper .MuiDataGrid-columnHeaderTitle {
+  font-weight: 700 !important;
+  color: #000 !important;
+}
+
+/* Optional – small style improvement for rows */
+.custom-data-grid-wrapper .MuiDataGrid-cell {
+  font-size: 14px;
+}
+
+
+
