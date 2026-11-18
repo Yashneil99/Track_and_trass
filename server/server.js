@@ -1,3 +1,7 @@
+
+const dotenv = require("dotenv");
+const path = require("path");
+dotenv.config({ path: path.join(__dirname, ".env") });
 const express = require("express");
 const app = express();
 const http = require("http");
@@ -5,7 +9,6 @@ const { Server } = require("socket.io")
 const cors = require("cors");
 const { logger } = require("./src/utils/logger.js");
 const bodyParser = require("body-parser");
-const dotenv = require("dotenv");
 const helmet = require("helmet");
 const rateLimit = require("express-rate-limit");
 const cookieParser = require("cookie-parser");
@@ -41,8 +44,7 @@ const io = new Server(httpServer, {
 
 const PORT = process.env.PORT || 5001;
 
-const path = require("path");
-dotenv.config({ path: path.join(__dirname, ".env") });
+
 
 // Public origin the browser uses to reach this server (set per-machine via env).
 const SERVER_ORIGIN = `http://${process.env.SERVER_HOST || "localhost"}:${PORT}`;
@@ -116,6 +118,12 @@ app.use(bodyParser.json());
 app.use(express.urlencoded({ extended: true }));
 app.use(express.json());
 app.use(cookieParser());
+
+app.get("/",(req,res)=>{
+  res.status(200).send({
+    message:"Server is Running Properly"
+  })
+})
 
 app.use("/uploads", (req, res, next) => {
   res.header("Access-Control-Allow-Origin", "*");

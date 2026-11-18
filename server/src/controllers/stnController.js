@@ -787,7 +787,6 @@ const consolidateStn = async (req, res) => {
     if (!docResult || docResult.status !== 200 || !docResult.data || docResult.data.length === 0) {
       return res.status(404).json({ status: 404, message: "Document record not found in database" });
     }
-
     const document = docResult.data[0];
     if (!document.file_path) {
       return res.status(422).json({ status: 422, message: "Document record lacks a valid file path" });
@@ -807,7 +806,6 @@ const consolidateStn = async (req, res) => {
       result.message += ` (${invalid.length} row(s) skipped for zero/negative bag count)`;
       result.invalid = invalid;
     }
-
     return res.status(result.status).json(result);
   } catch (error) {
     console.error("STN Consolidate Error:", error);
