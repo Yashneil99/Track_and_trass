@@ -20,3 +20,9 @@ server/logs/
 .vscode/
 .vs/
 .DS_Store
+
+# database backups (contain user data and password hashes)
+*backup*.sql
+*.dump
+*.backup
+db-init/*.sql
