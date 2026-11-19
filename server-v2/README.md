@@ -3,6 +3,7 @@
 The new API for HUL Tea Bag Track N Trace. The old `server/` is not changed; it stays as a reference while this is built one module at a time.
 
 Design documents (read these first):
+
 - `../BUSINESS_RULES.md`: what the system must do.
 - `../DATA_MODELING.md`: tables, keys, indexes and data flows.
 - `../docs/API_INVENTORY.md`: the old server's endpoints, used as a feature checklist.
@@ -34,14 +35,14 @@ API testing by hand is done in Swagger UI at `/api-docs` (added in Phase 1), not
 
 Every folder in `src/modules/` has the same files, added when that module is built:
 
-| File | Job |
-|---|---|
-| `<name>.routes.js` | URLs and which middleware each uses |
+| File                   | Job                                                      |
+| ---------------------- | -------------------------------------------------------- |
+| `<name>.routes.js`     | URLs and which middleware each uses                      |
 | `<name>.controller.js` | reads the request, calls the service, sends the response |
-| `<name>.service.js` | business rules |
-| `<name>.repository.js` | SQL only |
-| `<name>.schema.js` | Zod validation, also the source of the Swagger docs |
-| `<name>.test.js` | tests for this module |
+| `<name>.service.js`    | business rules                                           |
+| `<name>.repository.js` | SQL only                                                 |
+| `<name>.schema.js`     | Zod validation, also the source of the Swagger docs      |
+| `<name>.test.js`       | tests for this module                                    |
 
 Modules: `auth`, `users`, `locations`, `gardens`, `stn`, `bags`, `outward`, `process`, `alerts`.
 
@@ -55,15 +56,15 @@ Modules: `auth`, `users`, `locations`, `gardens`, `stn`, `bags`, `outward`, `pro
 
 ## Phases
 
-| Phase | Content |
-|---|---|
-| 0 | This folder structure |
-| 1 | Foundation: config, core, logging, auth middleware, database helper, health, Swagger, Jest, CI |
-| 2 | Database: migrations, new schema, seed data, conversion of the old data |
-| 3 | Access and master data: auth, users, locations and bin stock, gardens, processes |
-| 4 | STN upload, lots, slots, allocation |
-| 5 | Bag flows: receiving, tags, putaway, damaged |
-| 6 | Outward to production, delivery, expiry edits |
-| 7 | Realtime and admin alerts |
-| 8 | Scale: background jobs, load tests |
-| 9 | New client, Docker and nginx, cutover |
+| Phase | Content                                                                                        |
+| ----- | ---------------------------------------------------------------------------------------------- |
+| 0     | This folder structure                                                                          |
+| 1     | Foundation: config, core, logging, auth middleware, database helper, health, Swagger, Jest, CI |
+| 2     | Database: migrations, new schema, seed data, conversion of the old data                        |
+| 3     | Access and master data: auth, users, locations and bin stock, gardens, processes               |
+| 4     | STN upload, lots, slots, allocation                                                            |
+| 5     | Bag flows: receiving, tags, putaway, damaged                                                   |
+| 6     | Outward to production, delivery, expiry edits                                                  |
+| 7     | Realtime and admin alerts                                                                      |
+| 8     | Scale: background jobs, load tests                                                             |
+| 9     | New client, Docker and nginx, cutover                                                          |
