@@ -1,0 +1,11 @@
+{
+  "name": "hul-track-server-v2",
+  "version": "0.0.0",
+  "private": true,
+  "description": "HUL Tea Bag Track N Trace API (v2). Built phase by phase; see README.md.",
+  "main": "server.js",
+  "engines": {
+    "node": ">=20"
+  },
+  "scripts": {}
+}
