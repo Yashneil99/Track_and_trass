@@ -48,7 +48,7 @@ Modules: `auth`, `users`, `locations`, `gardens`, `stn`, `bags`, `outward`, `pro
 
 ## Rules
 
-- JavaScript (CommonJS), Node 20, Express 5, plain SQL (no ORM), Zod, pino, Jest.
+- JavaScript (CommonJS), Node 24, Express 5, plain SQL (no ORM), Zod, pino, Jest.
 - Keep the response shape `{ status, message, data }`.
 - No secrets in the repo. Settings come from `.env`, checked at startup.
 - Real STN files are not committed (`tests/fixtures/stn-real/` is ignored). Use sample files with invented data.

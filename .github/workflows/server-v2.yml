@@ -1,9 +1,11 @@
 name: server-v2
+ 
 
+#  when does it run
 on:
   push:
     paths:
-      - 'server-v2/**'
+      - 'server-v2/**' # so it will only run when the changes happen inside this directry
       - '.github/workflows/server-v2.yml'
   pull_request:
     paths:
@@ -40,7 +42,7 @@ jobs:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with:
-          node-version: 20
+          node-version: 24
           cache: npm
           cache-dependency-path: server-v2/package-lock.json
       - run: npm ci
