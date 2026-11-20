@@ -1,9 +1,11 @@
 name: server-v2
+ 
 
+#  when does it run
 on:
   push:
     paths:
-      - 'server-v2/**'
+      - 'server-v2/**' # so it will only run when the changes happen inside this directry
       - '.github/workflows/server-v2.yml'
   pull_request:
     paths:
@@ -37,10 +39,10 @@ jobs:
       DB_PASSWORD: postgres
       DB_NAME: hul_track_v2_test
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
         with:
-          node-version: 20
+          node-version: 24
           cache: npm
           cache-dependency-path: server-v2/package-lock.json
       - run: npm ci
