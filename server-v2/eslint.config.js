@@ -19,6 +19,11 @@ module.exports = [
     },
   },
   {
+    // Command-line tools talk to a person at a terminal, so console output is their job.
+    files: ['src/migrations/cli.js', 'src/seeds/cli.js'],
+    rules: { 'no-console': 'off' },
+  },
+  {
     files: ['tests/**/*.js', '**/*.test.js'],
     languageOptions: { globals: { ...globals.jest } },
   },
