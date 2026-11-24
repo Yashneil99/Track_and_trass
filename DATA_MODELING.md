@@ -1,10 +1,8 @@
 # Data Modeling: HUL Tea Bag Track N Trace
-
-Status: DRAFT for review. Nothing here is created in the database yet.
+Status: Implemented as migrations in `server-v2/src/migrations/sql/` (Phase 2). If this document and a migration ever differ, the migration is what the database really has.
 Business rules behind this model are in `BUSINESS_RULES.md`. Never put secrets in this file.
 
 ## 1. Conventions
-
 - **Primary keys:** `bigint generated always as identity` on high-volume tables (`bags`, `bag_events`). Human-readable codes (for example `BAG-000101`) are separate `UNIQUE` columns.
 - **Times:** always `timestamptz` (migration 006 fixed earlier `timetz` mistakes).
 - **Status columns:** `text` with a `CHECK` constraint, not Postgres ENUMs, because ENUMs are hard to change.
@@ -12,7 +10,6 @@ Business rules behind this model are in `BUSINESS_RULES.md`. Never put secrets i
 - **Changes to stock numbers** happen only inside one database transaction, together with the event that caused them.
 
 ## 2. How the tables connect
-
 ```
 users ──< user_sessions
   │
@@ -30,7 +27,7 @@ gardens ──< garden_aliases
                 │  │
                 │  ├──< bag_events           (append-only history)
                 │  │
-                │  └──< tag_assignments >── rfid_tags
+                │  └──1:1── rfid_tags         (the tag currently on the bag)
                 │
                 └──< outward_request_bags >── outward_requests ──< outward_request_lines
 ```
@@ -58,19 +55,16 @@ gardens ──< garden_aliases
 **locations** (kept, cleaned). A tree: warehouse → floor → bin, plus the loading area.
 - PK `location_id`. `code` UNIQUE (human-readable, e.g. `hul_2f_bin_3`).
 - FK `parent_id` → locations(`location_id`). Today it holds the parent's code and is not enforced.
-- `name`, `type` CHECK (warehouse, floor, bin, loading_area), `capacity int` (a real column, not JSON), `is_active`, `created_at`.
-- Removed: `reserved` (moves to `bin_stock`). `stack` and `layout` kept only if the client uses them.
+- `name`, `type` CHECK (warehouse, floor, bin, loading_area), `is_active`, `created_at`.
+- Removed: `capacity` and `reserved` (both move to `bin_stock`). `stack` and `layout` are left out until the client needs them.
 - Indexes: `parent_id`, `(type, is_active)`.
 
-**bin_stock** (new; one row per bin)
-- PK and FK `location_id` → locations.
-- `occupied int`, `reserved int`, `updated_at`.
-- `CHECK (occupied >= 0 AND reserved >= 0)`.
-- Over-booking is blocked by the update itself (see 4.1).
-
-**bin_availability** (view)
-- `capacity` (from locations), `occupied`, `reserved`, `available = capacity - occupied - reserved`.
-- Roll-ups per floor and per warehouse sum this view through the `parent_id` tree.
+**bin_stock** (new; one row per bin, all four numbers together; replaces the earlier `bin_availability` view)
+- PK and FK `location_id` → locations. Only locations of type `bin` may have a row (trigger).
+- `capacity int` (changed only by an admin), `occupied int`, `reserved int`, `updated_at`.
+- `available int` is a **generated column**: `capacity - occupied - reserved`. Nobody can set it.
+- `CHECK (occupied >= 0 AND reserved >= 0)` and `CHECK (occupied + reserved <= capacity)`: a bin can never be over-booked, even if code is wrong (see 4.1).
+- Roll-ups per floor and per warehouse sum the bins through the `parent_id` tree.
 
 **gardens** (new)
 - PK `garden_id`. `name` UNIQUE (normalized).
@@ -108,8 +102,9 @@ gardens ──< garden_aliases
 **stn_lots** (was `stn_invoice_allocations`; one row per garden invoice)
 - PK `lot_id`. FK `stn_id` → stn_documents. FK `garden_id` → gardens.
 - `grade`, `invoice_no`, `lot_qr_code` UNIQUE (fallback for OCR).
-- Progress counters: `bags_expected`, `bags_tagged`, `bags_stored` (reached a bin, never goes down), `bags_damaged` (damaged before reaching a bin). All `>= 0`.
-- `status` CHECK (`EXPECTED`, `IN_TRANSIT`, `PARTIALLY_STORED`, `STORED`), set automatically from the counters in the same transaction (see `BUSINESS_RULES.md` section 4).
+- Progress counters: `bags_expected` (> 0), `bags_tagged`, `bags_stored` (reached a bin, never goes down), `bags_dispatched` (sent to production), `bags_delivered` (scanned at production), `bags_damaged` (damaged before reaching a bin).
+- CHECKs keep them in order: tagged <= expected, stored <= tagged, dispatched <= stored, delivered <= dispatched, damaged <= tagged.
+- `status` CHECK (`EXPECTED`, `IN_TRANSIT`, `PARTIALLY_STORED`, `STORED`, `PARTIALLY_DISPATCHED`, `DISPATCHED`), set automatically from the counters in the same transaction (see `BUSINESS_RULES.md` section 4). The exact status of each bag lives on `bags.status`; the lot shows the overall stage.
 - UNIQUE `(garden_id, invoice_no)`: agreed unique for now. A duplicate makes the STN upload fail with a clear message.
 - Indexes: `stn_id`, `status`.
 
@@ -140,22 +135,20 @@ Indexes:
 - partial `(current_location_id) WHERE status = 'STORED'`: bin contents
 - partial `(expiry_date) WHERE status = 'STORED'`: first-expiry-first-out picking
 
-**rfid_tags** (new)
+**rfid_tags** (new; the separate `tag_assignments` table was dropped)
 - PK `tag_uid` (the factory number, text).
-- `status` CHECK (available, in_use, lost, damaged), `first_seen_at`.
-
-**tag_assignments** (new; makes tag reuse safe)
-- PK `assignment_id`. FK `tag_uid` → rfid_tags. FK `bag_id` → bags. FK `assigned_by` → users.
-- `assigned_at`, `released_at`, `release_reason`.
-- Partial UNIQUE `(tag_uid) WHERE released_at IS NULL`: one active bag per tag.
-- Partial UNIQUE `(bag_id) WHERE released_at IS NULL`: one active tag per bag.
+- `status` CHECK (AVAILABLE, IN_USE, LOST, DAMAGED), `first_seen_at`.
+- `current_bag_id` FK → bags, **UNIQUE**, empty while the tag is free. Being a single column, a tag can be on only one bag; the UNIQUE means a bag carries only one tag.
+- `CHECK ((status = 'IN_USE') = (current_bag_id IS NOT NULL))`: the status and the link always agree.
+- A tag is reused by clearing `current_bag_id` and setting `AVAILABLE`. The history of which tag was on which bag is kept in `bag_events` (`TAGGED` and `TAG_RELEASED` rows carry `tag_uid`).
 
 ### 3.5 History
 
 **bag_events** (was `material_movements`; append-only, one row per thing that happened)
 - PK `(event_id, occurred_at)`. Partitioned by month on `occurred_at`.
 - FK `bag_id` → bags. FK `user_id` → users. FK `from_location_id`, `to_location_id` → locations.
-- `event_type`, `from_status`, `to_status`, `device_id`, `payload jsonb` (OCR text, expiry-change reason, and so on).
+- `event_type` CHECK (CREATED, TAGGED, STORED, MOVED, DISPATCHED_TO_PRODUCTION, DELIVERED, DAMAGED, TAG_RELEASED, EXPIRY_CHANGED), `from_status`, `to_status`, `tag_uid` FK → rfid_tags, `device_id`, `payload jsonb` (OCR text, expiry-change reason, and so on).
+- A DEFAULT partition catches any date without a monthly partition; `ensure_bag_events_partition(month)` creates the next ones (a nightly job keeps this ahead later).
 - Indexes: `(bag_id, occurred_at DESC)` for a bag's timeline; BRIN on `occurred_at`.
 - Current state lives on `bags`; events are the history. Today `material_movements` is a state table with one row per bag.
 
@@ -204,14 +197,14 @@ Indexes:
 
 | Number | Source | Changed by |
 |---|---|---|
-| Capacity (total) | `locations.capacity` | Only an admin editing the bin |
+| Capacity (total) | `bin_stock.capacity` | Only an admin editing the bin |
 | Occupied | `bin_stock.occupied` | Place, move, dispatch-to-production and damaged events |
 | Reserved | `bin_stock.reserved` | Lot allocation; reduced as bags are placed |
-| Available | `bin_availability` view | Never set directly: `capacity - occupied - reserved` |
+| Available | `bin_stock.available` (generated column) | Never set directly: `capacity - occupied - reserved` |
 
 ### 4.1 Rules enforced by the database
 - **Allocate (atomic, no race):**
-  `UPDATE bin_stock SET reserved = reserved + :n FROM locations l WHERE bin_stock.location_id = :bin AND l.location_id = bin_stock.location_id AND bin_stock.occupied + bin_stock.reserved + :n <= l.capacity`
+  `UPDATE bin_stock SET reserved = reserved + :n WHERE location_id = :bin AND occupied + reserved + :n <= capacity`
   If zero rows are updated, the bin is full.
 - **Place a bag:** `reserved - 1`, `occupied + 1` (or just `occupied + 1` with the same space check when the bag has no reservation there).
 - **Move a bag to another bin:** old bin `occupied - 1`; new bin uses its reservation for that lot if present, otherwise needs free space.
@@ -225,11 +218,11 @@ Indexes:
 | Step | Writes |
 |---|---|
 | STN upload | `stn_documents`, `stn_lots`, `stn_lot_lines`, one `bags` row per bag (`EXPECTED`), `lot_bin_allocations`, `bin_stock.reserved` up |
-| OCR + tag scan (truck) | `rfid_tags` (checked `AVAILABLE`), `tag_assignments`, `bags.status = IN_TRANSIT`, `stn_lots` counters and status, a `bag_events` row |
+| OCR + tag scan (truck) | `rfid_tags` (checked `AVAILABLE`, then `IN_USE` with `current_bag_id`), `bags.status = IN_TRANSIT`, `stn_lots` counters and status, a `bag_events` row |
 | Putaway to bin | `bags.current_location_id`, status `STORED`, `bin_stock` (reserved down, occupied up), a `bag_events` row |
 | Outward raised | `outward_requests`, `outward_request_lines` |
 | Pick and scan out | `outward_request_bags`, `bags.status = DISPATCHED_TO_PRODUCTION`, `bin_stock.occupied` down, `bag_events` |
-| Delivery scan at production | `bags.status = DELIVERED`, `tag_assignments.released_at` set, tag `AVAILABLE`, `bag_events` |
+| Delivery scan at production | `bags.status = DELIVERED`, tag `AVAILABLE` with `current_bag_id` cleared, `stn_lots` counters and status, `bag_events` (`DELIVERED`, `TAG_RELEASED`) |
 | Bag found damaged | `bags.status = DAMAGED`, tag released, bin or reservation released, `stn_lots` counters, `alerts`, `bag_events` |
 
 Each row of this table runs inside one transaction.
@@ -244,9 +237,9 @@ Each row of this table runs inside one transaction.
 | stn_invoice_allocations | stn_lots |
 | splits (and `allocated_location`) | lot_bin_allocations |
 | raise_request | outward_requests |
-| `locations.reserved` | `bin_stock.reserved` |
+| `locations.reserved`, `locations.capacity` | `bin_stock.reserved`, `bin_stock.capacity` |
 | `users.refresh_token` | `user_sessions` |
-| (none) | gardens, garden_aliases, garden_merges, alerts, stn_lot_lines, rfid_tags, tag_assignments, outward_request_lines, outward_request_bags, bin_stock, app_settings |
+| (none) | gardens, garden_aliases, garden_merges, alerts, stn_lot_lines, rfid_tags, outward_request_lines, outward_request_bags, bin_stock, app_settings |
 
 ## 7. Open points
 
@@ -303,7 +296,14 @@ EXPECTED ──(first tag scanned)──► IN_TRANSIT ──(first bag reaches 
                                                                                    │
                                   bags_stored + bags_damaged = bags_expected       ▼
                                                                                 STORED
+                                                                                   │ (first bag sent to production)
+                                                                                   ▼
+                                                                          PARTIALLY_DISPATCHED
+                                                                                   │ bags_dispatched = bags_stored
+                                                                                   ▼
+                                                                               DISPATCHED
 Example: 10 of 20 bags have reached their bins -> bags_stored = 10 -> PARTIALLY_STORED
+The lot row only summarises. Each bag's own status is on bags.status, because the bags of one lot are in different states at the same time.
 ```
 
 ### 8.2 Flow A: One-time and occasional setup (admin)
@@ -325,7 +325,7 @@ Admin
   │
   ├─► settings (expiry months, alert days) ► app_settings
   │
-  └─► change a bin's capacity ─────────► locations.capacity
+  └─► change a bin's capacity ─────────► bin_stock.capacity
               │   rule: new capacity >= occupied + reserved, else rejected
               └─ old value, new value, user, reason ─► audit_logs
 ```
@@ -385,16 +385,15 @@ Operator (handheld app)
   ▼  ONE TRANSACTION
   5. rfid_tags          ← register the tag as AVAILABLE if never seen before
   6. Is the tag available for use?
-  │     rfid_tags.status must be AVAILABLE and it must have no active tag_assignments row
+  │     rfid_tags.status must be AVAILABLE (and current_bag_id empty)
   │     └─ IN_USE / LOST / DAMAGED ─► REJECT, alerts row ("rejected tag")
   7. Pick one free slot:
   │     bags WHERE lot_id = ? AND status = 'EXPECTED' LIMIT 1 FOR UPDATE SKIP LOCKED
   │     └─ no free slot ─► "extra bag": not linked, alerts row, live alert to admin
-  8. tag_assignments    ← new row (tag, bag, who, assigned_at)
-  9. rfid_tags.status   ← IN_USE
- 10. bags               ← status IN_TRANSIT, actual weight, tagged_at
- 11. stn_lots           ← bags_tagged + 1, status recalculated
- 12. bag_events         ← IN_TRANSIT (payload keeps the raw OCR text)
+  8. rfid_tags          ← status IN_USE, current_bag_id = the bag
+ 9. bags               ← status IN_TRANSIT, actual weight, tagged_at
+ 10. stn_lots           ← bags_tagged + 1, status recalculated
+ 11. bag_events         ← TAGGED (tag_uid, payload keeps the raw OCR text)
   │
   ▼
   Slots still EXPECTED when an admin closes the lot are the missing bags (reported, alert)
@@ -405,7 +404,7 @@ Operator (handheld app)
 ```
 Operator scans the bag tag, then scans the bin
   │
-  1. Find the active bag for the tag (tag_assignments where released_at IS NULL)
+  1. Find the bag for the tag (rfid_tags.current_bag_id)
   │
   ▼  ONE TRANSACTION
   2. Same lot has a reservation in this bin (lot_bin_allocations)?
@@ -444,8 +443,9 @@ Operator picks bags and scans each one out
   4. outward_request_bags   ← which bag, by whom, when
   5. bags                   ← status DISPATCHED_TO_PRODUCTION, dispatched_to_production_at
   6. bin_stock              ← bag's bin: occupied - 1
-  7. bag_events             ← DISPATCHED_TO_PRODUCTION
-  8. outward_request_lines  ← bags_picked + 1
+  7. stn_lots               ← bags_dispatched + 1, status recalculated
+  8. bag_events             ← DISPATCHED_TO_PRODUCTION
+  9. outward_request_lines  ← bags_picked + 1
   │
   ▼
 All lines complete ─► outward_requests.status = COMPLETED
@@ -455,9 +455,9 @@ At production, the person puts the bag into a process and scans it
   │
   ▼  ONE TRANSACTION
   9. bags                   ← status DELIVERED, delivered_at, delivered_process_id (optional)
- 10. tag_assignments        ← released_at = now, release_reason "delivered"
- 11. rfid_tags              ← status AVAILABLE (tag can be used for a new bag)
- 12. bag_events             ← DELIVERED
+ 10. rfid_tags              ← status AVAILABLE, current_bag_id cleared (tag can be used for a new bag)
+ 11. stn_lots               ← bags_delivered + 1, status recalculated
+ 12. bag_events             ← DELIVERED, then TAG_RELEASED (tag_uid)
 ```
 
 ### 8.7 Flow F: Changing a bag's expiry date
@@ -484,11 +484,10 @@ Admin edits expiry (one bag, or a whole lot)
   │     ├─ bag was STORED ─► bin_stock.occupied - 1
   │     └─ bag was IN_TRANSIT / not yet in a bin ─► release one reservation of the lot
   │                                                  (bin_stock.reserved - 1)
-  3. tag_assignments    ← released_at = now, release_reason "damaged"
-  4. rfid_tags          ← status AVAILABLE (the tag is free again)
-  5. stn_lots           ← bags_damaged + 1 only if the bag had not reached a bin; status recalculated
-  6. bag_events         ← DAMAGED (who, reason)
-  7. alerts             ← live alert to admins, showing the bag and the garden it belongs to
+  3. rfid_tags          ← status AVAILABLE, current_bag_id cleared (the tag is free again)
+  4. stn_lots           ← bags_damaged + 1 only if the bag had not reached a bin; status recalculated
+  5. bag_events         ← DAMAGED (who, reason), then TAG_RELEASED (tag_uid)
+  6. alerts             ← live alert to admins, showing the bag and the garden it belongs to
 ```
 
 **Exceptions:**
@@ -527,13 +526,13 @@ STN `2619005538`, garden NGK PRIME GOLD, invoice C269, 20 bags (19 at 30 kg, 1 a
 |---|---|---|---|---|
 | 1 | Admin uploads the STN | 1 `stn_documents`, 1 `stn_lots`, 2 `stn_lot_lines`, 20 `bags` (EXPECTED), 1 `lot_bin_allocations` (20 bags to bin 3); garden created if new | 0 / 0, `EXPECTED` | 0 / 20 / 480 |
 | 2 | Operator scans the printed "NGK PRIME GOLD", app sends the name, operator confirms lot C269 | none yet (a search only) | 0 / 0, `EXPECTED` | 0 / 20 / 480 |
-| 3 | Operator scans an `AVAILABLE` tag `E2806894…F0C5` | `tag_assignments` (BAG-000101), tag IN_USE, bag IN_TRANSIT, 1 `bag_events` | 1 / 0, `IN_TRANSIT` | 0 / 20 / 480 |
+| 3 | Operator scans an `AVAILABLE` tag `E2806894…F0C5` | `rfid_tags` (current_bag_id = BAG-000101), tag IN_USE, bag IN_TRANSIT, 1 `bag_events` | 1 / 0, `IN_TRANSIT` | 0 / 20 / 480 |
 | 4 | Operator puts it in bin 3 | bag STORED in bin 3, 1 `bag_events` | 1 / 1, `PARTIALLY_STORED` | 1 / 19 / 480 |
 | 5 | The other 19 bags are tagged and placed the same way | 19 more of steps 3 and 4 | 20 / 20, `STORED` | 20 / 0 / 480 |
 | 6 | A request is raised for this garden, 10 bags | 1 `outward_requests` (PENDING), 1 `outward_request_lines` | unchanged | 20 / 0 / 480 |
 | 7 | Operator picks 10 bags (earliest expiry first), including BAG-000101, and scans each out | 10 `outward_request_bags`, bags DISPATCHED_TO_PRODUCTION, 10 `bag_events`, request COMPLETED; tags still IN_USE | unchanged | 10 / 0 / 490 |
-| 8 | At production each bag is scanned as it goes into a process | bags DELIVERED, `tag_assignments.released_at` set, 10 tags AVAILABLE, 10 `bag_events` | unchanged | 10 / 0 / 490 |
-| 9 | Tag `E2806894…F0C5` is attached to a new bag in a later STN | new `tag_assignments` row for the new bag; the old row keeps the old bag's history | other lot | unchanged |
+| 8 | At production each bag is scanned as it goes into a process | bags DELIVERED, 10 tags released (AVAILABLE, no bag), `bag_events` for each | unchanged | 10 / 0 / 490 |
+| 9 | Tag `E2806894…F0C5` is attached to a new bag in a later STN | the tag's `current_bag_id` now points to the new bag; the old bag's `bag_events` keep the tag's earlier history | other lot | unchanged |
 
 Looking up BAG-000101 afterwards returns its full timeline from `bag_events`: tagged, stored, dispatched to production, delivered, with the user and time for each step.
 
@@ -541,10 +540,10 @@ Looking up BAG-000101 afterwards returns its full timeline from `bag_events`: ta
 
 | Reader | Reads | From |
 |---|---|---|
-| Handheld operator | Expected lots, free slots, bin availability | `stn_lots`, `bags`, `bin_availability` |
-| Admin dashboard | Totals per floor / warehouse, expiring bags, missing bags | `bin_availability`, `bags`, `stn_lots` |
+| Handheld operator | Expected lots, free slots, bin availability | `stn_lots`, `bags`, `bin_stock` |
+| Admin dashboard | Totals per floor / warehouse, expiring bags, missing bags | `bin_stock`, `bags`, `stn_lots` |
 | Production | Pending and completed requests | `outward_requests`, `outward_request_lines` |
-| Traceability search | Full timeline of one bag or tag | `bag_events`, `tag_assignments` |
+| Traceability search | Full timeline of one bag or tag | `bag_events` (filter by `bag_id` or `tag_uid`) |
 | Auditor | Who changed capacity, expiry, users | `audit_logs`, `bag_events` |
 
 ### 8.12 Flow H: Merging duplicate gardens (admin screen)

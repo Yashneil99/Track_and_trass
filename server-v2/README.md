@@ -21,7 +21,8 @@ server-v2/
 │   ├── shared/          helpers used by many modules (withTransaction, ...)
 │   ├── modules/         one folder per feature (see below)
 │   ├── realtime/        Socket.IO setup, rooms, events
-│   └── migrations/      numbered SQL files and the runner
+│   ├── migrations/      runner.js, cli.js and sql/ (numbered SQL files)
+│   └── seeds/           test data for development
 ├── tests/
 │   ├── unit/            pure logic, no database
 │   ├── integration/     SQL and database rules, against a real Postgres
@@ -30,6 +31,21 @@ server-v2/
 ```
 
 API testing by hand is done in Swagger UI at `/api-docs` (added in Phase 1), not Postman.
+
+## Database
+
+Set `DB_*` in `.env` (see `.env.example`) and create an empty database first, e.g. `CREATE DATABASE hul_track_v2;`.
+
+| Command                  | What it does                                                         |
+| ------------------------ | -------------------------------------------------------------------- |
+| `npm run migrate`        | Applies every SQL file in `src/migrations/sql/` that has not run yet |
+| `npm run migrate:status` | Shows which migrations have run                                      |
+| `npm run seed`           | Loads test users, gardens, bins and tags. Safe to run again          |
+
+- Migrations are numbered (`001_access.sql`, `002_...`) and run in order, each in its own transaction.
+- **Never edit a migration that has already run** (the runner refuses and tells you). Add a new numbered file instead.
+- `npm run seed` prints the test users' password once. Set `SEED_PASSWORD` to choose it. It refuses to run when `NODE_ENV=production`.
+- Tests wipe and rebuild their own database (`hul_track_v2_test`), so create it once. The test helper refuses to wipe any database whose name does not end in `_test`.
 
 ## Module layout
 
@@ -60,7 +76,7 @@ Modules: `auth`, `users`, `locations`, `gardens`, `stn`, `bags`, `outward`, `pro
 | ----- | ---------------------------------------------------------------------------------------------- |
 | 0     | This folder structure                                                                          |
 | 1     | Foundation: config, core, logging, auth middleware, database helper, health, Swagger, Jest, CI |
-| 2     | Database: migrations, new schema, seed data, conversion of the old data                        |
+| 2     | Database: migrations, new schema, seed data (done); conversion of the old data (next)          |
 | 3     | Access and master data: auth, users, locations and bin stock, gardens, processes               |
 | 4     | STN upload, lots, slots, allocation                                                            |
 | 5     | Bag flows: receiving, tags, putaway, damaged                                                   |

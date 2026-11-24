@@ -1,0 +1,17 @@
+# Always use Unix line endings (LF) in the repo and in checked-out files, on every machine.
+# Without this, Windows turns files into CRLF, Prettier turns them back, and Git
+# shows dozens of "changed" files that have no real change.
+* text=auto eol=lf
+
+# Binary files must never be converted.
+*.png binary
+*.jpg binary
+*.jpeg binary
+*.gif binary
+*.ico binary
+*.pdf binary
+*.xlsx binary
+*.xls binary
+*.woff binary
+*.woff2 binary
+*.ttf binary

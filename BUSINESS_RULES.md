@@ -66,7 +66,7 @@ Effects of each step:
 
 ## 4. Lot progress (Agreed)
 
-1. A lot has counters: `bags_expected`, `bags_tagged` (tag scanned so far), `bags_stored` (reached their bins), `bags_damaged`. `bags_stored` counts bags that have reached a bin and never goes down. `bags_damaged` counts only bags damaged *before* reaching a bin; a bag damaged after it was stored is still counted as stored.
+1. A lot has counters: `bags_expected`, `bags_tagged` (tag scanned so far), `bags_stored` (reached their bins), `bags_dispatched` (sent to production), `bags_delivered` (scanned at production), `bags_damaged`. `bags_stored` counts bags that have reached a bin and never goes down. `bags_damaged` counts only bags damaged *before* reaching a bin; a bag damaged after it was stored is still counted as stored. Each counter can never be larger than the step before it.
 2. The lot status is set **automatically** from the counters:
 
 | Lot status | When |
@@ -75,8 +75,12 @@ Effects of each step:
 | `IN_TRANSIT` | Some bags tagged, none stored yet |
 | `PARTIALLY_STORED` | At least one bag stored, but not all |
 | `STORED` | `bags_stored + bags_damaged = bags_expected` |
+| `PARTIALLY_DISPATCHED` | At least one bag sent to production, but not all stored bags |
+| `DISPATCHED` | `bags_dispatched = bags_stored` (everything that was stored has been sent) |
 
 Example: a lot of 20 where 10 bags have reached their bins shows `bags_stored = 10` and status `PARTIALLY_STORED` until the other 10 arrive.
+
+The lot status is only a summary. The bags of one lot are in different states at the same time (some in the truck, some stored, some already sent to production), so each bag keeps its own exact status on the bag itself.
 
 3. The counters change only inside the same transaction as the bag event, and a nightly job recounts them from the bags (Proposed).
 
@@ -84,10 +88,10 @@ Example: a lot of 20 where 10 bags have reached their bins shows `bags_stored = 
 
 1. A tag has one state: `AVAILABLE` (free to use) or `IN_USE` (linked to a bag). `LOST` and `DAMAGED` are extra states (Proposed).
 2. A tag can have **only one active bag at a time**.
-3. Linking a tag to a bag sets it `IN_USE` and writes an assignment record (tag, bag, assigned_at). A tag must be `AVAILABLE` to be linked.
-4. **The tag is released automatically when the bag is `DELIVERED` or `DAMAGED`**: `released_at` is set and the tag becomes `AVAILABLE`.
-5. Assignment history is never deleted. One tag will have many bags over time, one after another.
-6. A scan always means "the bag this tag is linked to right now". History is found by date.
+3. Linking a tag to a bag sets it `IN_USE` and records which bag it is on (`current_bag_id`) and a `TAGGED` event. A tag must be `AVAILABLE` to be linked.
+4. **The tag is released automatically when the bag is `DELIVERED` or `DAMAGED`**: the link to the bag is cleared, a `TAG_RELEASED` event is written and the tag becomes `AVAILABLE`.
+5. History is never deleted. It is kept in the bag events, each carrying the tag number, so one tag's many bags over time (one after another) can always be found.
+6. A scan always means "the bag this tag is linked to right now". Earlier bags are found through the bag events by date.
 7. Scanning a tag that has no active bag, when the system expects one, is rejected and alerts the admin.
 8. A physical process for recovering tags (who removes them, where they go back) must be defined by HUL. Open question.
 

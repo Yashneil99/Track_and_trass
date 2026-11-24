@@ -15,10 +15,14 @@
     "test:coverage": "jest --runInBand --coverage",
     "lint": "eslint .",
     "format": "prettier --write .",
-    "format:check": "prettier --check ."
+    "format:check": "prettier --check .",
+    "migrate": "node src/migrations/cli.js up",
+    "migrate:status": "node src/migrations/cli.js status",
+    "seed": "node src/seeds/cli.js"
   },
   "dependencies": {
     "@asteasolutions/zod-to-openapi": "^7.3.4",
+    "bcryptjs": "^3.0.3",
     "cookie-parser": "^1.4.7",
     "cors": "^2.8.6",
     "dotenv": "^18.0.10",
