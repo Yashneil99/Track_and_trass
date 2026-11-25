@@ -62,6 +62,26 @@ Every folder in `src/modules/` has the same files, added when that module is bui
 
 Modules: `auth`, `users`, `locations`, `gardens`, `stn`, `bags`, `outward`, `process`, `alerts`.
 
+## API (Phase 3, built in sub-phases)
+
+All routes are under `/api/v1` and are documented in Swagger (`/api-docs`). Log in first, then press **Authorize** and paste the `accessToken`.
+
+| Sub-phase | Module      | Routes                                                                                                         | Status |
+| --------- | ----------- | -------------------------------------------------------------------------------------------------------------- | ------ |
+| 3a        | `auth`      | `POST /auth/register`, `/auth/login`, `/auth/refresh`, `/auth/logout`, `/auth/change-password`; `GET /auth/me` | done   |
+| 3b        | `users`     | admin: list, create, edit, enable or disable, reset password                                                   | next   |
+| 3c        | `process`   | production processes                                                                                           |        |
+| 3d        | `locations` | warehouse tree, bin capacity                                                                                   |        |
+| 3e        | `gardens`   | gardens, aliases, merge                                                                                        |        |
+
+How auth behaves:
+
+- Register creates an account that is switched off (role operator). An admin activates it in 3b.
+- Tokens come back in the body (handheld, Swagger) and as httpOnly cookies (web).
+- A refresh token works once. Using an old one again ends all of that user's logins.
+- 5 wrong passwords lock an account for 15 minutes.
+- Changing the password ends every login of that user.
+
 ## Rules
 
 - JavaScript (CommonJS), Node 24, Express 5, plain SQL (no ORM), Zod, pino, Jest.
@@ -77,7 +97,7 @@ Modules: `auth`, `users`, `locations`, `gardens`, `stn`, `bags`, `outward`, `pro
 | 0     | This folder structure                                                                          |
 | 1     | Foundation: config, core, logging, auth middleware, database helper, health, Swagger, Jest, CI |
 | 2     | Database: migrations, new schema, seed data (done); conversion of the old data (next)          |
-| 3     | Access and master data: auth, users, locations and bin stock, gardens, processes               |
+| 3     | Access and master data, in sub-phases 3a to 3e: auth, users, processes, locations, gardens     |
 | 4     | STN upload, lots, slots, allocation                                                            |
 | 5     | Bag flows: receiving, tags, putaway, damaged                                                   |
 | 6     | Outward to production, delivery, expiry edits                                                  |

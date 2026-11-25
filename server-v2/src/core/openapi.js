@@ -30,6 +30,65 @@ function envelope(dataSchema) {
   });
 }
 
+const ERROR_TEXT = {
+  400: 'The request is not valid',
+  401: 'Not logged in, or the token is wrong or expired',
+  403: 'Your role is not allowed to do this',
+  404: 'Not found',
+  409: 'Conflicts with the current data',
+};
+
+/**
+ * Documents one endpoint in Swagger with very little code.
+ *   registerRoute({ method: 'post', path: '/users', tags: ['Users'], summary: '...',
+ *                   body: createUserBody, data: userData, status: 201, errors: [409] })
+ * 400 is added when the route validates input, 401 when it needs a login.
+ */
+function registerRoute({
+  method,
+  path,
+  tags,
+  summary,
+  auth = true,
+  params,
+  query,
+  body,
+  data,
+  status = 200,
+  errors = [],
+}) {
+  const codes = new Set(errors);
+  if (params || query || body) codes.add(400);
+  if (auth) codes.add(401);
+
+  const responses = {
+    [status]: {
+      description: 'Success',
+      content: { 'application/json': { schema: envelope(data || z.null()) } },
+    },
+  };
+  for (const code of [...codes].sort()) {
+    responses[code] = {
+      description: ERROR_TEXT[code] || 'Error',
+      content: { 'application/json': { schema: envelope(z.null()) } },
+    };
+  }
+
+  registry.registerPath({
+    method,
+    path,
+    tags,
+    summary,
+    security: auth ? [{ bearerAuth: [] }, { cookieAuth: [] }] : undefined,
+    request: {
+      params,
+      query,
+      body: body ? { content: { 'application/json': { schema: body } } } : undefined,
+    },
+    responses,
+  });
+}
+
 let cached;
 
 /** Built once from everything the modules registered. */
@@ -50,4 +109,4 @@ function buildOpenApiDocument() {
   return cached;
 }
 
-module.exports = { z, registry, envelope, buildOpenApiDocument };
+module.exports = { z, registry, envelope, registerRoute, buildOpenApiDocument };
