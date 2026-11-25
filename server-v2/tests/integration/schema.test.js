@@ -370,7 +370,7 @@ describe('rfid tags', () => {
     await attach('T-REUSE', bag2);
     expect(
       (await one(`SELECT current_bag_id FROM rfid_tags WHERE tag_uid = 'T-REUSE'`)).current_bag_id,
-    ).toBe(String(bag2));
+    ).toBe(bag2);
   });
 
   test('IN_USE and "has a bag" always agree', async () => {
@@ -567,5 +567,26 @@ describe('alerts and settings', () => {
     await q(`UPDATE app_settings SET value = '2' WHERE key = 't_key'`);
     const after = await one(`SELECT updated_at FROM app_settings WHERE key = 't_key'`);
     expect(after.updated_at.getTime()).toBeGreaterThan(before.updated_at.getTime());
+  });
+});
+
+describe('migration 011: login lockout and process names', () => {
+  test('a new user starts with no failed attempts, no lock and no last login', async () => {
+    const user = await one(
+      `INSERT INTO users (email, password_hash, name, role) VALUES ('m11@x.test', 'h', 'M', 'admin')
+       RETURNING failed_login_attempts, locked_until, last_login_at`,
+    );
+    expect(user).toEqual({ failed_login_attempts: 0, locked_until: null, last_login_at: null });
+  });
+
+  test('failed attempts can never be negative', async () => {
+    const err = await errorOf(q('UPDATE users SET failed_login_attempts = -1'));
+    expect(err.code).toBe('23514');
+  });
+
+  test('"Blending" and "BLENDING" cannot both be processes', async () => {
+    await q("INSERT INTO process_definitions (name) VALUES ('Blending')");
+    const err = await errorOf(q("INSERT INTO process_definitions (name) VALUES ('BLENDING')"));
+    expect(err.code).toBe('23505');
   });
 });

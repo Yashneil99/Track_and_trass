@@ -43,6 +43,8 @@ gardens ──< garden_aliases
 | `user_id` | PK |
 | `email` | UNIQUE |
 | `password_hash`, `name`, `role` (CHECK), `is_active`, `created_at` | |
+| `failed_login_attempts`, `locked_until` | Login lockout: 5 wrong passwords lock the account for 15 minutes (migration 011) |
+| `last_login_at` | Set on every successful login (migration 011) |
 | `refresh_token` | **removed**; moves to `user_sessions` |
 
 **user_sessions** (new; replaces the plain-text refresh token)

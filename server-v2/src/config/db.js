@@ -1,6 +1,9 @@
-const { Pool } = require('pg');
+const { Pool, types } = require('pg');
 const { env } = require('./env');
 const { logger } = require('../core/logger');
+
+// Postgres sends bigint (ids, counts) as text. Ours stay far below 2^53, so make them numbers.
+types.setTypeParser(types.builtins.INT8, Number);
 
 let pool;
 
