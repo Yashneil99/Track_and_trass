@@ -1,6 +1,7 @@
 const express = require('express');
 const healthRoutes = require('./modules/health/health.routes');
 const authRoutes = require('./modules/auth/auth.routes');
+const usersRoutes = require('./modules/users/users.routes');
 
 /**
  * Where every module is mounted. Each phase adds its modules here, for example:
@@ -12,6 +13,7 @@ function mountRoutes(app, { apiMiddleware = [] } = {}) {
 
   const api = express.Router();
   api.use('/auth', authRoutes);
+  api.use('/users', usersRoutes);
   app.use('/api/v1', ...apiMiddleware, api);
 }
 

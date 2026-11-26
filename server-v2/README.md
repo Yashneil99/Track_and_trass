@@ -69,14 +69,14 @@ All routes are under `/api/v1` and are documented in Swagger (`/api-docs`). Log 
 | Sub-phase | Module      | Routes                                                                                                         | Status |
 | --------- | ----------- | -------------------------------------------------------------------------------------------------------------- | ------ |
 | 3a        | `auth`      | `POST /auth/register`, `/auth/login`, `/auth/refresh`, `/auth/logout`, `/auth/change-password`; `GET /auth/me` | done   |
-| 3b        | `users`     | admin: list, create, edit, enable or disable, reset password                                                   | next   |
+| 3b        | `users`     | admin: list, create, edit, enable or disable, reset password                                                   | done   |
 | 3c        | `process`   | production processes                                                                                           |        |
 | 3d        | `locations` | warehouse tree, bin capacity                                                                                   |        |
 | 3e        | `gardens`   | gardens, aliases, merge                                                                                        |        |
 
 How auth behaves:
 
-- Register creates an account that is switched off (role operator). An admin activates it in 3b.
+- Register creates an account that is switched off (role operator). An admin activates it with `PATCH /users/:userId/status`.
 - Tokens come back in the body (handheld, Swagger) and as httpOnly cookies (web).
 - A refresh token works once. Using an old one again ends all of that user's logins.
 - 5 wrong passwords lock an account for 15 minutes.
